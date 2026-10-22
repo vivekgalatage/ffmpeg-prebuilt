@@ -1,0 +1,4 @@
+# Root of the sparse build: only FFmpeg (libffmpeg.so) and what it needs.
+group("ffmpeg_prebuilt") {
+  deps = [ "//third_party/ffmpeg" ]
+}

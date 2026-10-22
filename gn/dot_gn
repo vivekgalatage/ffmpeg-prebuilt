@@ -1,0 +1,23 @@
+# Minimal GN dotfile for building only //third_party/ffmpeg out of a sparse
+# Chromium checkout. Replaces Chromium's own //.gn, which imports files from
+# dependencies this build does not fetch (ANGLE, the hermetic Python, ...).
+
+import("//build/dotfile_settings.gni")
+
+buildconfig = "//build/config/BUILDCONFIG.gn"
+script_executable = "python3"
+
+# Only resolve the FFmpeg target and its dependencies. Without this GN would
+# also resolve every other target in the files it loads (for example
+# //third_party/opus:opus_tests, which needs //base and //testing/gtest).
+root_patterns = [ "//:ffmpeg_prebuilt" ]
+
+default_args = {
+  clang_unsafe_buffers_paths = "//build/config/unsafe_buffers_paths.txt"
+  clang_warning_suppression_file = "//build/config/warning_suppression.txt"
+  clang_raw_ptr_plugin_config_file = "//build/config/raw_ptr_plugin_config.yaml"
+  rust_clippy_conf_file = "//build/config/clippy.toml"
+}
+
+exec_script_allowlist =
+    build_dotfile_settings.exec_script_allowlist + [ "//build_overrides/build.gni" ]
