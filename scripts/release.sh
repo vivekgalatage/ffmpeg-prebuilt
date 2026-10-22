@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Publishes dist/* as GitHub release "chromium-<version>". Needs GH_TOKEN.
+# Refuses to touch an existing release unless FORCE=true, in which case the
+# release and its tag are deleted first so no stale assets remain.
 set -euo pipefail
 : "${CHROMIUM_VERSION:?}"
 
@@ -16,10 +18,18 @@ notes=$(mktemp)
   echo
   echo "Exact sources and build arguments are in each \`*.BUILDINFO.txt\`."
   echo "Each archive also contains \`libffmpeg.so.sha256\` (hash of the library itself)."
+  echo
+  echo "Built from ffmpeg-prebuilt commit \`${GITHUB_SHA:-unknown}\`."
+  if [ "${FORCE:-}" = true ]; then
+    echo "Rebuilt on $(date -u +%Y-%m-%d) (force)."
+  fi
 } > "$notes"
 
 if gh release view "$tag" >/dev/null 2>&1; then
-  gh release upload "$tag" "$dist"/* --clobber
-else
-  gh release create "$tag" "$dist"/* --title "Chromium $CHROMIUM_VERSION" --notes-file "$notes"
+  if [ "${FORCE:-}" != true ]; then
+    echo "release $tag already exists; not overwriting (set force to rebuild)" >&2
+    exit 1
+  fi
+  gh release delete "$tag" --cleanup-tag --yes
 fi
+gh release create "$tag" "$dist"/* --title "Chromium $CHROMIUM_VERSION" --notes-file "$notes"

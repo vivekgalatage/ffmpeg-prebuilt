@@ -1,35 +1,70 @@
 name: build
 
 on:
+  push:
+    branches: [main]
+    paths: [CHROMIUM_VERSION]
   workflow_dispatch:
     inputs:
       chromium_version:
-        description: Chromium release tag to build from
-        required: true
-        default: "158.0.8108.0"
-      publish:
-        description: Publish the result as a GitHub release
+        description: Chromium release tag to build (default - contents of CHROMIUM_VERSION)
+        required: false
+      force:
+        description: Rebuild even if the release exists, replacing it
         type: boolean
         default: false
 
 permissions:
   contents: read
 
-concurrency:
-  group: build-${{ inputs.chromium_version }}
-  cancel-in-progress: false
-
 jobs:
+  plan:
+    name: plan
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      skip: ${{ steps.plan.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: plan
+        env:
+          INPUT_VERSION: ${{ inputs.chromium_version }}
+          FORCE: ${{ inputs.force }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${INPUT_VERSION:-$(tr -d '[:space:]' < CHROMIUM_VERSION)}"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::invalid Chromium version '$version'"
+            exit 1
+          fi
+          skip=false
+          if [ "$FORCE" != true ]; then
+            assets=$(gh release view "chromium-$version" --json assets -q '.assets[].name' 2>/dev/null || true)
+            if grep -qx "libffmpeg-$version-linux-x64.tar.xz" <<<"$assets" &&
+               grep -qx "libffmpeg-$version-linux-arm64.tar.xz" <<<"$assets"; then
+              skip=true
+              echo "Release chromium-$version already exists; nothing to build." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
   build:
     name: linux-${{ matrix.cpu }}
+    needs: plan
+    if: needs.plan.outputs.skip != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+    concurrency:
+      group: build-${{ needs.plan.outputs.version }}-${{ matrix.cpu }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
         cpu: [x64, arm64]
     env:
-      CHROMIUM_VERSION: ${{ inputs.chromium_version }}
+      CHROMIUM_VERSION: ${{ needs.plan.outputs.version }}
       TARGET_CPU: ${{ matrix.cpu }}
     steps:
       - uses: actions/checkout@v5
@@ -53,18 +88,21 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: libffmpeg-${{ inputs.chromium_version }}-linux-${{ matrix.cpu }}
+          name: libffmpeg-${{ needs.plan.outputs.version }}-linux-${{ matrix.cpu }}
           path: dist/*
           if-no-files-found: error
 
   release:
-    if: ${{ inputs.publish }}
-    needs: build
+    needs: [plan, build]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
+    concurrency:
+      group: release-${{ needs.plan.outputs.version }}
+      cancel-in-progress: false
     env:
-      CHROMIUM_VERSION: ${{ inputs.chromium_version }}
+      CHROMIUM_VERSION: ${{ needs.plan.outputs.version }}
+      FORCE: ${{ inputs.force }}
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
     steps:

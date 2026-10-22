@@ -43,14 +43,57 @@ revision). Loading a library built for a different version can crash.
    and `ff_aac_decoder` are in the library.
 4. `scripts/package.sh`: archive plus hashes and build info.
 
-Run it from the Actions tab (**build** → *Run workflow*), giving the Chromium
-version and whether to publish a release.
+## Choosing the Chromium version
+
+The version to build lives in one place: the [`CHROMIUM_VERSION`](CHROMIUM_VERSION)
+file. A push to `main` that changes it starts the **build** workflow, which
+publishes the result as the release `chromium-<version>`.
+
+- If that release already has both `x64` and `arm64` archives, the build is
+  skipped. Published releases are never overwritten.
+- **build** can also be run by hand (*Run workflow*) with an explicit
+  `chromium_version`. Setting `force` rebuilds and replaces an existing release
+  (its tag and assets are deleted and recreated).
+- **bump_chromium_version** takes a `chromium_version`, checks that the tag
+  exists, commits it to `CHROMIUM_VERSION` and starts **build**. This is the
+  entry point for automation, e.g.
+  `gh workflow run bump_chromium_version.yml -R <owner>/ffmpeg-prebuilt -f chromium_version=<version>`
+  with a fine-grained token that has *Actions: read and write* on this
+  repository.
+
+### Token for calling **bump_chromium_version** from another repository
+
+The calling repository needs a token that is allowed to start workflows here.
+Nothing else is required: the commit and the build use this repository's own
+`GITHUB_TOKEN`.
+
+1. On GitHub open *Settings → Developer settings → Personal access tokens →
+   Fine-grained tokens → Generate new token*.
+2. Resource owner: the account that owns `ffmpeg-prebuilt`. Set an expiry and
+   note when it ends; after that the calls fail with 401/403.
+3. Repository access: *Only select repositories* → `ffmpeg-prebuilt`.
+4. Repository permissions: **Actions → Read and write**. Metadata (read) is
+   added automatically. Leave everything else at *No access*.
+5. Generate the token and copy it.
+6. In the calling repository open *Settings → Secrets and variables →
+   Actions → New repository secret* and save it, e.g. as
+   `FFMPEG_PREBUILT_TOKEN`.
+7. Use it in a workflow step there:
+
+   ```yaml
+   - run: gh workflow run bump_chromium_version.yml -R <owner>/ffmpeg-prebuilt -f chromium_version=<version>
+     env:
+       GH_TOKEN: ${{ secrets.FFMPEG_PREBUILT_TOKEN }}
+   ```
+
+(A classic token also works with the `public_repo` scope, but it is not
+limited to one repository.)
 
 To build locally on Linux x64 (needs `git`, `python3`, `curl`, `unzip`,
-`ninja`):
+`ninja`; `CHROMIUM_VERSION` defaults to the file's contents):
 
 ```sh
-export CHROMIUM_VERSION=158.0.8108.0 TARGET_CPU=x64
+export TARGET_CPU=x64
 scripts/fetch_sources.sh && scripts/build.sh && scripts/verify.sh && scripts/package.sh
 ```
 
