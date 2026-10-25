@@ -1,0 +1,29 @@
+name: add_bare_library
+
+# Publishes the library on its own (libffmpeg-<version>-linux-<cpu>.so) in a
+# release made before build.yml did, from that release's own archives
+# (scripts/add_bare_library.sh). Never replaces an asset.
+
+on:
+  workflow_dispatch:
+    inputs:
+      chromium_version:
+        description: Chromium version of the release (default - contents of CHROMIUM_VERSION)
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  add:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Add the bare library
+        env:
+          INPUT_VERSION: ${{ inputs.chromium_version }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          export CHROMIUM_VERSION="${INPUT_VERSION:-$(tr -d '[:space:]' < CHROMIUM_VERSION)}"
+          scripts/add_bare_library.sh

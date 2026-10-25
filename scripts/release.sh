@@ -18,6 +18,8 @@ notes=$(mktemp)
   echo
   echo "Exact sources and build arguments are in each \`*.BUILDINFO.txt\`."
   echo "Each archive also contains \`libffmpeg.so.sha256\` (hash of the library itself)."
+  echo "\`*.so\` is the same library on its own (hash in \`*.so.sha256\`), for"
+  echo "downloads without tar or xz."
   echo
   echo "Built from ffmpeg-prebuilt commit \`${GITHUB_SHA:-unknown}\`."
   if [ "${FORCE:-}" = true ]; then

@@ -34,6 +34,10 @@ cp "$REPO_DIR/NOTICE.md" "$stage/"
 tar -C "$(dirname "$stage")" -cJf "$DIST_DIR/$name.tar.xz" "$name"
 (cd "$DIST_DIR" && sha256sum "$name.tar.xz" > "$name.tar.xz.sha256")
 cp "$stage/BUILDINFO.txt" "$DIST_DIR/$name.BUILDINFO.txt"
+# The library alone, for clients that download without tar/xz: the same
+# bytes as the libffmpeg.so in the archive.
+cp "$stage/libffmpeg.so" "$DIST_DIR/$name.so"
+(cd "$DIST_DIR" && sha256sum "$name.so" > "$name.so.sha256")
 
 ls -l "$DIST_DIR"
 cat "$stage/libffmpeg.so.sha256"

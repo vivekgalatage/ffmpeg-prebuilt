@@ -19,6 +19,8 @@ Each GitHub release is named `chromium-<version>` and contains, for `x64` and
 |---|---|
 | `libffmpeg-<version>-linux-<cpu>.tar.xz` | `libffmpeg.so`, `libffmpeg.so.sha256`, `BUILDINFO.txt`, `NOTICE.md`, `licenses/` |
 | `*.tar.xz.sha256` | Hash of the archive |
+| `libffmpeg-<version>-linux-<cpu>.so` | The same `libffmpeg.so` on its own, for downloads without tar or xz |
+| `*.so.sha256` | Hash of the library |
 | `*.BUILDINFO.txt` | Exact Chromium commit, FFmpeg/NASM revisions and GN arguments |
 
 ## Compatibility

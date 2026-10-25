@@ -42,7 +42,9 @@ jobs:
           if [ "$FORCE" != true ]; then
             assets=$(gh release view "chromium-$version" --json assets -q '.assets[].name' 2>/dev/null || true)
             if grep -qx "libffmpeg-$version-linux-x64.tar.xz" <<<"$assets" &&
-               grep -qx "libffmpeg-$version-linux-arm64.tar.xz" <<<"$assets"; then
+               grep -qx "libffmpeg-$version-linux-arm64.tar.xz" <<<"$assets" &&
+               grep -qx "libffmpeg-$version-linux-x64.so" <<<"$assets" &&
+               grep -qx "libffmpeg-$version-linux-arm64.so" <<<"$assets"; then
               skip=true
               echo "Release chromium-$version already exists; nothing to build." >> "$GITHUB_STEP_SUMMARY"
             fi
