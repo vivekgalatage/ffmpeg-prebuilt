@@ -53,9 +53,14 @@ publishes the result as the release `chromium-<version>`.
 
 - If that release already has both `x64` and `arm64` archives, the build is
   skipped. Published releases are never overwritten.
+- Releases are immutable (repository setting): a release is published only
+  once all its assets are uploaded, and after that GitHub lets nobody replace
+  or delete them or move its tag, and signs a release attestation
+  (`gh release verify-asset`).
 - **build** can also be run by hand (*Run workflow*) with an explicit
   `chromium_version`. Setting `force` rebuilds and replaces an existing release
-  (its tag and assets are deleted and recreated).
+  (its tag and assets are deleted and recreated); this works only for a
+  release published before immutability was turned on.
 - **bump_chromium_version** takes a `chromium_version`, checks that the tag
   exists, commits it to `CHROMIUM_VERSION` and starts **build**. This is the
   entry point for automation, e.g.

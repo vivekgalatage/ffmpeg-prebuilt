@@ -2,6 +2,12 @@
 # Publishes dist/* as GitHub release "chromium-<version>". Needs GH_TOKEN.
 # Refuses to touch an existing release unless FORCE=true, in which case the
 # release and its tag are deleted first so no stale assets remain.
+#
+# The repository keeps releases immutable: the release is created as a
+# draft, every asset uploaded, and only then published, after which nothing
+# in it can change. An
+# immutable release's tag cannot be deleted or reused, so FORCE works only
+# for a release published before immutability was turned on.
 set -euo pipefail
 : "${CHROMIUM_VERSION:?}"
 
@@ -34,4 +40,5 @@ if gh release view "$tag" >/dev/null 2>&1; then
   fi
   gh release delete "$tag" --cleanup-tag --yes
 fi
-gh release create "$tag" "$dist"/* --title "Chromium $CHROMIUM_VERSION" --notes-file "$notes"
+gh release create "$tag" "$dist"/* --draft --title "Chromium $CHROMIUM_VERSION" --notes-file "$notes"
+gh release edit "$tag" --draft=false
