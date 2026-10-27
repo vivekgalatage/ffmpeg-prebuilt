@@ -8,9 +8,23 @@ source "$(dirname "$0")/common.sh"
 mkdir -p "$WORK_DIR" "$TOOLS_DIR"
 
 log "chromium/src @ $CHROMIUM_VERSION (sparse)"
-if [ ! -d "$SRC_DIR/.git" ]; then
+clone_src() {
+  rm -rf "$SRC_DIR"
   git clone --quiet --depth 1 --filter=blob:none --no-checkout \
-    --branch "$CHROMIUM_VERSION" "$CHROMIUM_GIT/chromium/src.git" "$SRC_DIR"
+    --branch "$CHROMIUM_VERSION" "$1" "$SRC_DIR"
+}
+if [ ! -d "$SRC_DIR/.git" ]; then
+  for url in "${CHROMIUM_SRC_GITS[@]}"; do
+    echo "from $url"
+    if retry clone_src "$url"; then
+      break
+    fi
+    rm -rf "$SRC_DIR"
+  done
+  if [ ! -d "$SRC_DIR/.git" ]; then
+    echo "chromium/src @ $CHROMIUM_VERSION: no remote has it" >&2
+    exit 1
+  fi
 fi
 cd "$SRC_DIR"
 git sparse-checkout set --cone \
@@ -18,7 +32,8 @@ git sparse-checkout set --cone \
   tools/clang tools/rust \
   third_party/opus \
   third_party/rust/cxx/chromium_integration
-git checkout --quiet
+retry git checkout --quiet
+echo "chromium/src $(git remote get-url origin) @ $(git rev-parse HEAD)"
 git -C "$SRC_DIR" show HEAD:chrome/VERSION > "$WORK_DIR/chrome_VERSION"
 
 log "git dependencies"
@@ -45,7 +60,7 @@ for dep in "${FFMPEG_GIT_DEPS[@]}"; do
     mkdir -p "$dep"
     git -C "$dep" init --quiet
     git -C "$dep" remote add origin "$url"
-    git -C "$dep" fetch --quiet --depth 1 origin "$sha"
+    retry git -C "$dep" fetch --quiet --depth 1 origin "$sha"
     git -C "$dep" checkout --quiet FETCH_HEAD
   fi
   echo "$dep $url $sha" >> "$WORK_DIR/deps.txt.tmp"
@@ -88,7 +103,7 @@ print(m.group(1))
 EOF
 )
 if [ ! -x "$GN" ]; then
-  curl -fsSL -o "$TOOLS_DIR/gn.zip" \
+  curl "${CURL_FLAGS[@]}" -o "$TOOLS_DIR/gn.zip" \
     "https://chrome-infra-packages.appspot.com/dl/gn/gn/linux-amd64/+/git_revision:$gn_rev"
   unzip -q -o "$TOOLS_DIR/gn.zip" -d "$TOOLS_DIR/gn"
   chmod +x "$GN"

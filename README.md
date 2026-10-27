@@ -35,7 +35,9 @@ revision). Loading a library built for a different version can crash.
 
 1. `scripts/fetch_sources.sh`: sparse, blob-less, depth-1 checkout of
    `chromium/src` at the release tag (only `build/`, `buildtools/`, `testing/`,
-   `tools/clang`, `tools/rust`, `third_party/opus`). It then fetches the FFmpeg
+   `tools/clang`, `tools/rust`, `third_party/opus`), from Chromium's GitHub
+   mirror, or from googlesource for a tag the mirror does not have yet; a
+   stalled transfer fails and is retried. It then fetches the FFmpeg
    and NASM dependencies at the revisions that tag pins, and downloads GN,
    Chromium's clang, the Rust toolchain and the Debian sysroot.
 2. `scripts/build.sh`: `gn gen` with `is_component_ffmpeg = true`,

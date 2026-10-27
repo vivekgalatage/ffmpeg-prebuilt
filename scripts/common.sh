@@ -27,6 +27,31 @@ OUT_DIR="$SRC_DIR/out/linux-$TARGET_CPU"
 DIST_DIR="${DIST_DIR:-$REPO_DIR/dist}"
 GN="$TOOLS_DIR/gn/gn"
 CHROMIUM_GIT="https://chromium.googlesource.com"
+# Where chromium/src is cloned from, in order: Chromium's GitHub mirror (the
+# same commits and tags; fast from GitHub's runners, with none of
+# googlesource's per-address throttling), then googlesource for a tag the
+# mirror does not have yet.
+CHROMIUM_SRC_GITS=(
+  https://github.com/chromium/chromium.git
+  "$CHROMIUM_GIT/chromium/src.git"
+)
+
+# A stalled transfer fails instead of hanging the job: git gives up below
+# 1 KB/s for 60 s, curl after 5 minutes; retry() then tries again.
+export GIT_HTTP_LOW_SPEED_LIMIT="${GIT_HTTP_LOW_SPEED_LIMIT:-1000}"
+export GIT_HTTP_LOW_SPEED_TIME="${GIT_HTTP_LOW_SPEED_TIME:-60}"
+CURL_FLAGS=(-fsSL --retry 3 --connect-timeout 30 --max-time 300)
+
+# retry CMD...: runs CMD up to 3 times, 15 s apart.
+retry() {
+  local attempt
+  for attempt in 1 2 3; do
+    "$@" && return 0
+    echo "attempt $attempt failed: $*" >&2
+    [ "$attempt" -lt 3 ] && sleep 15
+  done
+  return 1
+}
 
 # Git dependencies (gitlinks in chromium/src) needed by //third_party/ffmpeg.
 # Opus is part of chromium/src itself and comes with the sparse checkout.

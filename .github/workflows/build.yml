@@ -77,6 +77,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends ninja-build python3 git curl unzip xz-utils binutils
 
       - name: Fetch sources
+        # 4-5 minutes normally; a stall fails here, not at the job's 120.
+        timeout-minutes: 30
         run: scripts/step.sh fetch_sources
 
       - name: Build
